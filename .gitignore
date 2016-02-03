@@ -3,3 +3,6 @@
 
 # Byte-compiled
 __pycache__/
+
+# Personal samples (also for things that cannot be republished)
+sample/private/
