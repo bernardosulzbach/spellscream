@@ -21,11 +21,10 @@ class InspectionReport:
         lines = [self.filename + ":"]
         for warning in self.warnings:
             lines.append(warning)
-        for issue in self.issues:
-            if hasattr(issue, "line"):
-                lines.append("{:-6}: {}".format(issue.line, issue.text))
-            else:
-                lines.append(" {}".format(issue.line, issue.text))
+        if len(self.issues) > 0:
+            maximum_line = self.issues[-1].line
+            for issue in self.issues:
+                lines.append(issue.format(max_line=maximum_line))
         return "\n".join(lines)
 
     def increment_word_count(self):
@@ -72,7 +71,16 @@ class Issue:
         self.type = issue_type
 
     def __str__(self):
-        return self.text
+        return str(self.line) + ": " + self.text
+
+    def format(self, max_line):
+        """
+        Formats this the string representation of this issue by padding the line number for all issues to be aligned.
+        :param max_line: the biggest line number of the report this issue belongs to
+        :return: a human-readable and properly padded string representation of this issue
+        """
+        length_delta = len(str(max_line)) - len(str(self.line))
+        return ' ' * length_delta + str(self)
 
 
 # The shared word set used as a dictionary
