@@ -1,2 +1,11 @@
+install:
+    - pip3 install nose
+
+docker:
+    as_root: true  # for pip installation
+    image: "coala/rultor-python"
+
 merge:
-  script: nosetests
+    fast-forward: only
+    rebase: true
+    script: nosetests
