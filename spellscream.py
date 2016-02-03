@@ -17,13 +17,16 @@ class InspectionReport:
     def __str__(self):
         lines = [self.filename + ":"]
         for issue in self.issues:
-            lines.append("  " + str(issue))
+            if hasattr(issue, "line"):
+                lines.append("{:-6}: {}".format(issue.line, issue.text))
+            else:
+                lines.append(" {}".format(issue.line, issue.text))
         return "\n".join(lines)
 
 
 class Issue:
     """
-    An issue in a file.
+    A simple issue in a file.
     """
 
     def __init__(self, line, text):
@@ -31,7 +34,7 @@ class Issue:
         self.text = text
 
     def __str__(self):
-        return str(self.line) + ": " + self.text
+        return self.text
 
 
 dictionary = None
@@ -88,7 +91,7 @@ def inspect_word(line, word, report):
     word = clean_word(word)
     if len(word) > 0:
         if not word.isnumeric() and not is_valid_word(word):
-            report.issues.append(Issue(line, word))
+            report.issues.append(Issue(line, word + " is a typo"))
 
 
 def inspect_file(filename):
