@@ -126,6 +126,16 @@ def clean_file_words(file):
             yield line_number, word
 
 
+def is_number(word):
+    """
+    Detects if the word is a number. This function also detects monetary values and negative numbers.
+    :param word: a text word
+    :return: True if the word is considered to be a number, False otherwise
+    """
+    # The first check is only needed for formal correctness. If performance requirements demand, it may be removed.
+    return len(word) > 0 and len(word.strip('0123456789,.-$')) == 0
+
+
 def inspect_word(line, word, report):
     """
     Inspects a single word from a text file.
@@ -136,7 +146,7 @@ def inspect_word(line, word, report):
     word = clean_word(word)
     if len(word) > 0:
         report.increment_word_count()
-        if not word.isnumeric() and not is_valid_word(word):
+        if not is_number(word) and not is_valid_word(word):
             report.add_issue(Issue(line, word))
 
 
