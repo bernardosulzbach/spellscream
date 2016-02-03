@@ -1,4 +1,5 @@
 import argparse
+import collections
 import os
 
 
@@ -9,6 +10,8 @@ class InspectionReport:
 
     def __init__(self, filename):
         self.filename = filename
+        self.word_count = 0
+        self.warnings = []
         self.issues = []
 
     def __len__(self):
@@ -16,6 +19,8 @@ class InspectionReport:
 
     def __str__(self):
         lines = [self.filename + ":"]
+        for warning in self.warnings:
+            lines.append(warning)
         for issue in self.issues:
             if hasattr(issue, "line"):
                 lines.append("{:-6}: {}".format(issue.line, issue.text))
@@ -23,20 +28,54 @@ class InspectionReport:
                 lines.append(" {}".format(issue.line, issue.text))
         return "\n".join(lines)
 
+    def increment_word_count(self):
+        self.word_count += 1
+
+    def add_issue(self, issue):
+        self.issues.append(issue)
+
+    def analyze_issues(self):
+        """
+        Analyzes the issues of this Report, possibly generating warnings and removing issues.
+        """
+        typo_counter = collections.defaultdict(lambda: 0)
+        for issue in self.issues:
+            typo_counter[issue.text] += 1
+        # Typos that appear more than max(words / 10000, 10) times are assumed to be names
+        name_threshold = max(self.word_count / 10000, 10)
+        ignored_typos = []
+        for key, count in typo_counter.items():
+            if count > name_threshold:
+                ignored_typos.append((count, key))
+        ignored_typos.sort()
+        ignored_typos.reverse()
+        for typo in ignored_typos:
+            self.warnings.append("considering '" + typo[1] + "' a name as it was detected " + str(typo[0]) + " times")
+        self.remove_issues_based_on_text(set(typo[1] for typo in ignored_typos))
+
+    def remove_issues_based_on_text(self, typos):
+        new_issue_list = []
+        for issue in self.issues:
+            if issue.text not in typos:
+                new_issue_list.append(issue)
+        self.issues = new_issue_list
+
 
 class Issue:
     """
     A simple issue in a file.
     """
 
-    def __init__(self, line, text):
+    def __init__(self, line, text, issue_type='typo'):
         self.line = line
         self.text = text
+        self.type = issue_type
 
     def __str__(self):
         return self.text
 
 
+# The shared word set used as a dictionary
 dictionary = None
 
 
@@ -55,17 +94,23 @@ def get_dictionary():
 
 
 def is_valid_word(word):
+    """
+    Simply checks if the word is in the global dictionary or not.
+    :param word: the input word
+    """
     return word in get_dictionary()
 
 
-def list_files(root):
-    for root, directories, files in os.walk(root):
-        for file in files:
-            yield os.path.join(root, file)
-
-
 def clean_word(word):
-    return word.strip("*_,:;.!?(){}[]'\"").lower()
+    """
+    Sanitizes the input word as to maximize the fairness of the dictionary check.
+    :param word: the input word
+    """
+    word = word.strip("*_,:;.!?(){}[]'\"")  # Stripping periods this way is problematic because "U.S." becomes "U.S"
+    word = word.lower()  # May bring up issues with names, but is necessary for now for words that come after a period.
+    if word.endswith("'s"):
+        return word[:-2]
+    return word
 
 
 def clean_file_words(file):
@@ -76,7 +121,7 @@ def clean_file_words(file):
     line_number = 0
     for line in file.readlines():
         line_number += 1
-        words = line.replace("--", " ").split()
+        words = line.replace("--", " ").translate(str.maketrans("‘’“”", "''\"\"")).split()
         for word in words:
             yield line_number, word
 
@@ -90,8 +135,9 @@ def inspect_word(line, word, report):
     """
     word = clean_word(word)
     if len(word) > 0:
+        report.increment_word_count()
         if not word.isnumeric() and not is_valid_word(word):
-            report.issues.append(Issue(line, word + " is a typo"))
+            report.add_issue(Issue(line, word))
 
 
 def inspect_file(filename):
@@ -104,7 +150,14 @@ def inspect_file(filename):
         report = InspectionReport(filename)
         for line, word in clean_file_words(open_file):
             inspect_word(line, word, report)
+        report.analyze_issues()
         return report
+
+
+def list_files(root):
+    for root, directories, files in os.walk(root):
+        for file in files:
+            yield os.path.join(root, file)
 
 
 def get_arguments():
