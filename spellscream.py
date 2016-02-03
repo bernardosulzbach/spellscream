@@ -18,7 +18,7 @@ class InspectionReport:
         return len(self.issues)
 
     def __str__(self):
-        lines = [self.filename + ":"]
+        lines = [self.get_report_heading()]
         for warning in self.warnings:
             lines.append(warning)
         for issue in self.issues:
@@ -59,6 +59,14 @@ class InspectionReport:
             if issue.text not in typos:
                 new_issue_list.append(issue)
         self.issues = new_issue_list
+
+    def get_report_heading(self):
+        """
+        Creates a proper heading for this report.
+        """
+        issue_count = len(self.issues)
+        issue_count_string = "(1 issue)" if issue_count == 1 else "(" + str(issue_count) + " issues)"
+        return self.filename + " " + issue_count_string + ":"
 
 
 class Issue:
